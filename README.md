@@ -96,14 +96,38 @@ This project extends SONiC from a pure L2/L3 switch into a **Secure Edge Router*
 
 ## The Bake Process (Pre-Build Setup)
 
-1. Launch a clean SONiC VM
-2. Clone the repo into `/home/admin/sonic-wan`
-3. Add `.secrets` directory and required config files
-4. Manually load the custom `zerotier:wan` image:
+### Getting the SONiC Base Image
+
+To begin, you’ll need a base SONiC Virtual Switch (VS) image.
+
+You can download prebuilt SONiC VM images from the **unofficial SONiC build repository**:  
+➡️ [https://sonic.software/](https://sonic.software/)
+
+For this project, use the following build configuration:
+- **Branch:** `master`  
+- **Image:** `sonic-vs.img.gz`  
+- **Build Type:** *Nightly / Latest* — ideal for proof-of-concept environments where frequent updates are acceptable.
+
+After downloading, decompress the image:
+```bash
+gunzip sonic-vs.img.gz
+```
+This file (`sonic-vs.img`) will serve as the base image you boot under KVM, prepare with the WAN containers and scripts, and later convert to a Containerlab-compatible image using vrnetlab.
+
+ToDo: Describe how to convert to qow2 format
+ToDo: Show how to start the KVM
+ToDo: Describe the vrnetlab process to create the containerlab SONiC-VM Container
+
+
+1. Convert the `sonic-vs.img` file to qow2 format
+2. Launch a clean SONiC VM
+3. Clone the repo into `/home/admin/sonic-wan`
+4. Add `.secrets` directory and required config files
+5. Manually load the custom `zerotier:wan` image:
    ```bash
    docker load -i zerotier-wan.tar
    ```
-5. Run the setup script:
+6. Run the setup script:
    ```bash
    sudo ./enable-wan-in-sonic.sh
    ```
