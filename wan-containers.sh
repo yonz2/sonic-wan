@@ -1,116 +1,148 @@
 #!/bin/bash
+# ==============================================================================
+# wan-containers.sh
+# ------------------------------------------------------------------------------
+# Starts WireGuard and/or ZeroTier containers inside SONiC using plain Docker CLI.
+# Designed for minimal dependencies and full compatibility with the SONiC VM
+# environment (no docker-compose, no systemd modifications).
 #
-# A robust script to deploy WireGuard and/or ZeroTier containers on SONiC.
+# Author: Yonz / Net-Innovate Solutions GmbH
+# Company: Net-Innovate Solutions GmbH
+# License: The Unlicense
+# Version: 2025-10-16
+# ------------------------------------------------------------------------------
+# Directory layout (relative to /home/admin/sonic-wan):
 #
+#   .secrets/
+#     ├── wireguard/wg0.conf
+#     └── zerotier/
+#          ├── identity.public
+#          └── identity.secret
+#
+#   logs/
+#     ├── wireguard.log
+#     └── zerotier.log
+#
+#   Scripts:
+#     ├── enable-wan-in-sonic.sh
+#     └── wan-containers.sh
+#
+# ------------------------------------------------------------------------------
+# NOTE ABOUT CUSTOM ZEROTIER IMAGE:
+# ---------------------------------
+# This script assumes a *custom* ZeroTier image called `zerotier:wan` exists locally.
+# You must manually copy the image tarball to the SONiC VM and import it as follows:
+#
+#   scp zerotier-wan.tar admin@<sonic-vm>:/home/admin/
+#   ssh admin@<sonic-vm>
+#   sudo docker load -i /home/admin/zerotier-wan.tar
+#
+# Do NOT script this step — it’s intentionally manual to maintain image control
+# during pre-bake and testing phases.
+# ==============================================================================
 
-# --- Configuration ---
-# Exit immediately if a command exits with a non-zero status.
 set -e
 
-# --- Functions ---
+BASE_DIR="/home/admin/sonic-wan"
+SECRETS_DIR="$BASE_DIR/.secrets"
+LOG_DIR="$BASE_DIR/logs"
 
-# Prints the usage instructions for the script.
-usage() {
-    echo "Usage: $0 [wireguard|zerotier|both]"
-    echo "  - wireguard: Deploys only the WireGuard container."
-    echo "  - zerotier:  Deploys only the ZeroTier container."
-    echo "  - both:      Deploys both containers (default)."
+mkdir -p "$LOG_DIR"
+
+# ------------------------------------------------------------------------------ 
+# Helper for readable logging
+# ------------------------------------------------------------------------------
+log() { echo -e "\033[1;36m[WAN]\033[0m $*"; }
+
+# ------------------------------------------------------------------------------ 
+# Function: start_zerotier
+# ------------------------------------------------------------------------------
+start_zerotier() {
+  log "Starting ZeroTier container (custom image: zerotier:wan)..."
+
+  # Stop and remove old instance if exists
+  if sudo docker ps -a --format '{{.Names}}' | grep -q '^zerotier$'; then
+    log "Existing ZeroTier container found — removing..."
+    sudo docker rm -f zerotier >/dev/null 2>&1 || true
+  fi
+
+  sudo docker run -d \
+    --name zerotier \
+    --restart=unless-stopped \
+    --net=host \
+    --cap-add=NET_ADMIN \
+    --device /dev/net/tun \
+    -v /var/lib/zerotier-one:/var/lib/zerotier-one \
+    -v "$LOG_DIR":/logs \
+    zerotier:wan >> "$LOG_DIR/zerotier.log" 2>&1
+
+  sleep 2
+  log "✅ ZeroTier container started (image: zerotier:wan, name: zerotier)."
+  log "   Join network using: docker exec -it zerotier zerotier-cli join <network-id>"
+}
+
+# ------------------------------------------------------------------------------ 
+# Function: start_wireguard
+# ------------------------------------------------------------------------------
+start_wireguard() {
+  log "Starting WireGuard container (linuxserver/wireguard:latest)..."
+
+  if sudo docker ps -a --format '{{.Names}}' | grep -q '^wireguard$'; then
+    log "Existing WireGuard container found — removing..."
+    sudo docker rm -f wireguard >/dev/null 2>&1 || true
+  fi
+
+  sudo docker run -d \
+    --name wireguard \
+    --restart=unless-stopped \
+    --cap-add=NET_ADMIN \
+    --cap-add=SYS_MODULE \
+    --device /dev/net/tun \
+    --sysctl net.ipv4.conf.all.src_valid_mark=1 \
+    --sysctl net.ipv4.ip_forward=1 \
+    -v /etc/wireguard:/config \
+    -v "$LOG_DIR":/logs \
+    linuxserver/wireguard:latest >> "$LOG_DIR/wireguard.log" 2>&1
+
+  sleep 2
+  log "✅ WireGuard container started (name: wireguard)."
+  log "   Check logs with: docker logs wireguard"
+}
+
+# ------------------------------------------------------------------------------ 
+# Function: stop_all
+# ------------------------------------------------------------------------------
+stop_all() {
+  log "Stopping and removing WAN containers..."
+  sudo docker rm -f wireguard zerotier >/dev/null 2>&1 || true
+  log "✅ All WAN containers stopped and removed."
+}
+
+# ------------------------------------------------------------------------------ 
+# Main
+# ------------------------------------------------------------------------------
+case "$1" in
+  zerotier)
+    start_zerotier
+    ;;
+  wireguard)
+    start_wireguard
+    ;;
+  both)
+    start_wireguard
+    start_zerotier
+    ;;
+  stop)
+    stop_all
+    ;;
+  *)
+    echo "Usage: $0 {zerotier|wireguard|both|stop}"
+    echo
+    echo "Examples:"
+    echo "  $0 zerotier   → Start only ZeroTier container"
+    echo "  $0 wireguard  → Start only WireGuard container"
+    echo "  $0 both       → Start both containers"
+    echo "  $0 stop       → Stop and remove both containers"
     exit 1
-}
-
-# Sets up the required sysctl kernel parameter for WireGuard.
-# The function is idempotent and safe to run multiple times.
-setup_sysctl() {
-    local config_file="/etc/sysctl.d/99-wireguard.conf"
-    echo "INFO: Checking kernel parameters for WireGuard..."
-
-    if [ ! -f "$config_file" ]; then
-        echo "INFO: Configuration file not found. Creating $config_file..."
-        echo "net.ipv4.conf.all.src_valid_mark=1" | sudo tee "$config_file" > /dev/null
-    else
-        echo "INFO: Configuration file $config_file already exists."
-    fi
-
-    echo "INFO: Applying sysctl settings from all configuration files..."
-    sudo sysctl --system
-    echo "INFO: Kernel parameters are set."
-}
-
-# Stops, removes, and deploys the WireGuard container.
-deploy_wireguard() {
-    echo "--- Deploying WireGuard ---"
-    
-    # Stop and remove any previous instance of the container, ignoring errors if it doesn't exist.
-    echo "INFO: Removing existing WireGuard container (if any)..."
-    sudo docker stop wireguard >/dev/null 2>&1 || true
-    sudo docker rm wireguard >/dev/null 2>&1 || true
-
-    echo "INFO: Launching new WireGuard container..."
-    # Note: Ensure your wg0.conf is located in /etc/wireguard on the host.
-    sudo docker run -d \
-      --name wireguard \
-      --network=host \
-      --cap-add=NET_ADMIN \
-      --cap-add=SYS_MODULE \
-      --device=/dev/net/tun \
-      -e TZ=Europe/Berlin \
-      -v /etc/wireguard:/config \
-      -v /var/log/wireguard:/var/log/wireguard \
-      -v /lib/modules:/lib/modules \
-      --restart=unless-stopped \
-      linuxserver/wireguard:latest
-
-    echo "SUCCESS: WireGuard container has been started."
-}
-
-# Stops, removes, and deploys the ZeroTier container.
-deploy_zerotier() {
-    echo "--- Deploying ZeroTier ---"
-
-    # Stop and remove any previous instance of the container, ignoring errors if it doesn't exist.
-    echo "INFO: Removing existing ZeroTier container (if any)..."
-    sudo docker stop zerotier >/dev/null 2>&1 || true
-    sudo docker rm zerotier >/dev/null 2>&1 || true
-
-    echo "INFO: Launching new ZeroTier container..."
-    sudo docker run -d \
-      --name zerotier \
-      --network=host \
-      --cap-add=NET_ADMIN \
-      --cap-add=SYS_MODULE \
-      --device=/dev/net/tun \
-      -v /var/lib/zerotier-one:/var/lib/zerotier-one \
-      --restart=unless-stopped \
-      zerotier:wan # Using your custom-built image
-
-    echo "SUCCESS: ZeroTier container has been started."
-}
-
-
-# --- Main Script Logic ---
-
-# Default to deploying both if no argument is given
-DEPLOY_TARGET=${1:-both}
-
-case "$DEPLOY_TARGET" in
-    wireguard)
-        setup_sysctl
-        deploy_wireguard
-        ;;
-    zerotier)
-        # sysctl is not needed for ZeroTier, but we run it anyway if it's the only one.
-        setup_sysctl
-        deploy_zerotier
-        ;;
-    both)
-        setup_sysctl
-        deploy_wireguard
-        deploy_zerotier
-        ;;
-    *)
-        echo "ERROR: Invalid argument '$DEPLOY_TARGET'."
-        usage
-        ;;
+    ;;
 esac
-
-echo "--- Deployment Complete ---"
