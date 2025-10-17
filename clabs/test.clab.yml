@@ -1,0 +1,97 @@
+# Author: Yonz / Net-Innovate Solutions GmbH
+# License: The Unlicense
+# Description: Defines a simple site with a policy-based router, a SONiC core switch, and several clients.
+name: test_single_wan_node
+
+mgmt:
+  network: clab-net
+  ipv4-subnet: 192.168.250.0/24
+
+topology:
+  nodes:
+    # ----------------------------------------------------------------
+    # WAN Policy Router
+    # ----------------------------------------------------------------
+    wan-node1:
+      kind: linux
+      image: policy-router:supervisor
+      
+      cap-add: [ "NET_ADMIN", "SYS_ADMIN" ]
+      devices: [ "/dev/net/tun" ]
+      sysctls:
+        net.ipv4.ip_forward: "1"
+        net.ipv4.conf.all.src_valid_mark: "1"
+      
+      # ✅ All mounts (host binds and named volumes) go under the 'binds' key
+      binds:
+        # Host bind mount for config injection
+        - ./router-configs/__clabNodeName__:/configs-to-inject:ro
+        # Host bind mounts for the persistent storage of configuration data (persistent state)
+        - ./.router-configs-runtime/__clabNodeName__/zerotier:/var/lib/zerotier-one"
+        - ./.router-configs-runtime/__clabNodeName__/wireguard:/etc/wireguard"
+      
+      ports:
+        - "2233:22"
+      
+      env:
+        NODE_NAME: __clabNodeName__
+        # The LAN_IF now points to the single trunk link to the core switch
+        LAN_IF: "eth1"
+        # --- VLAN 10 for ZeroTier Traffic ---
+        ZT_NETWORKID: "a84ac5c10a4eafb4"
+        ZT_VLAN_SUBNET: "192.168.10.0/24"
+        ZT_VLAN_IP: "192.168.10.1/24"
+        # --- VLAN 101 for Secure Web Access (SWA) Traffic ---
+        SWA_VLAN_SUBNET: "192.168.101.0/24"
+        SWA_VLAN_IP: "192.168.101.1/24"
+        # --- VLAN 30 for IoT Traffic (New) ---
+        IOT_VLAN_SUBNET: "192.168.30.0/24" # Assumed for iot clients
+        IOT_VLAN_IP: "192.168.30.1/24"     # Assumed for iot clients
+        # --- Global ZeroTier Network ---
+        ZT_NETWORK_SUBNET: "10.147.20.0/24"
+
+    # ----------------------------------------------------------------
+    # Core Switch and Clients
+    # ----------------------------------------------------------------
+    core1:
+      kind: sonic-vm
+      image: vrnetlab/sonic_sonic-vs:202505
+      group: "Site 1"
+
+    linux1:
+      kind: linux
+      image: linux-client:full
+      group: "Site 1"
+      exec:
+        - "ip addr add 192.168.10.11/24 dev eth1"
+        - "ip route replace default via 192.168.10.1" # Add default gateway
+
+    iot1:
+      kind: linux
+      image: iot-client:full
+      group: "Site 1"
+      exec:
+        - "ip addr add 192.168.30.11/24 dev eth1"
+        - "ip route replace default via 192.168.30.1" # Add default gateway
+    
+    iot2:
+      kind: linux
+      image: iot-client:full
+      group: "Site 1"
+      exec:
+        - "ip addr add 192.168.30.12/24 dev eth1"
+        - "ip route replace default via 192.168.30.1" # Add default gateway
+
+  links:
+    # Uplink: router's eth1 connects to core1's eth1, which maps to Ethernet0 in SONiC
+    - endpoints: ["wan-node1:eth1", "core1:eth1"]
+
+    # Client connections to Core Switch
+    # To connect to Ethernet12 in SONiC, we must use eth4 in the topology file
+    - endpoints: ["core1:eth4", "linux1:eth1"] # VLAN 10
+    
+    # To connect to Ethernet24 in SONiC, we must use eth7
+    - endpoints: ["core1:eth7", "iot1:eth1"] # VLAN 30
+    
+    # To connect to Ethernet28 in SONiC (since 25 is not possible), we use eth8
+    - endpoints: ["core1:eth8", "iot2:eth1"] # VLAN 30

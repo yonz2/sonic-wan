@@ -1,0 +1,7 @@
+Copy the Zerotier static identites and configuration files here:
+
+identoity.public
+identity.private
+devicemap
+local.conf
+

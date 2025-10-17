@@ -199,8 +199,19 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Secrets
-.secrets/
+
+
+# Ignore everything inside the .secrets directory and its subdirectories
+.secrets/**
+
+# BUT, do not ignore the directories themselves.
+# The trailing slash ensures this rule only applies to directories,
+# allowing Git to traverse them.
+!/.secrets/**/
+
+# NOW, un-ignore the specific dummy file you want to track.
+!/.secrets/**/.dummy_just_so_git_checks_in_the_folder
+
 
 *.tar.gz
 *.tar

@@ -14,11 +14,13 @@
 # Directory layout (relative to /home/admin/sonic-wan):
 #
 #   .secrets/
-#     ├── wireguard/wg0.conf
+#     ├── wireguard
+#          ├── /wg0.conf
 #     └── zerotier/
 #          ├── identity.public
 #          └── identity.secret
-#
+#          └── devicemap
+#          └── local.conf
 #   logs/
 #     ├── wireguard.log
 #     └── zerotier.log
@@ -28,24 +30,19 @@
 #     └── wan-containers.sh
 #
 # ------------------------------------------------------------------------------
-# NOTE ABOUT CUSTOM ZEROTIER IMAGE:
+# NOTE ABOUT CUSTOM ZEROTIER AND WIREGUARD IMAGE:
 # ---------------------------------
-# This script assumes a *custom* ZeroTier image called `zerotier:wan` exists locally.
-# You must manually copy the image tarball to the SONiC VM and import it as follows:
-#
-#   scp zerotier-wan.tar admin@<sonic-vm>:/home/admin/
-#   ssh admin@<sonic-vm>
-#   sudo docker load -i /home/admin/zerotier-wan.tar
-#
-# Do NOT script this step — it’s intentionally manual to maintain image control
-# during pre-bake and testing phases.
+# This script assumesthe wireguard and ZeroTier images exists locally.
+# The should have been copied and loaded by the configure_sonic_vm script
 # ==============================================================================
 
 set -e
 
-BASE_DIR="/home/admin/sonic-wan"
+BASE_DIR="$PWD"
 SECRETS_DIR="$BASE_DIR/.secrets"
 LOG_DIR="$BASE_DIR/logs"
+WIREGUARD_DIR="/etc/wireguard"
+ZEROTIER_DIR="/var/lib/zerotier-one"
 
 mkdir -p "$LOG_DIR"
 
@@ -59,6 +56,13 @@ log() { echo -e "\033[1;36m[WAN]\033[0m $*"; }
 # ------------------------------------------------------------------------------
 start_zerotier() {
   log "Starting ZeroTier container (custom image: zerotier:wan)..."
+
+  if [ ! -f "$ZEROTIER_DIR/identity.secret" ]; then
+    sudo cp "$SECRETS_DIR/zerotier/"* "$ZEROTIER_DIR/"
+    echo "✅  ZeroTier identities copied from $SECRETS_DIR/zerotier/"
+  else
+    echo "ℹ️  ZeroTier identity already present, skipping copy."
+  fi
 
   # Stop and remove old instance if exists
   if sudo docker ps -a --format '{{.Names}}' | grep -q '^zerotier$'; then
@@ -86,6 +90,15 @@ start_zerotier() {
 # ------------------------------------------------------------------------------
 start_wireguard() {
   log "Starting WireGuard container (linuxserver/wireguard:latest)..."
+
+  if [ ! -f "$WIREGUARD_DIR/wg0.conf" ]; then
+    sudo cp "$SECRETS_DIR/wireguard/"* "$WIREGUARD_DIR/"
+    echo "✅  WireGuard configuration copied from $SECRETS_DIR/wireguard/"
+  else
+    echo "ℹ️  WireGuard configuration already present, skipping copy."
+  fi
+
+
 
   if sudo docker ps -a --format '{{.Names}}' | grep -q '^wireguard$'; then
     log "Existing WireGuard container found — removing..."
@@ -118,6 +131,26 @@ stop_all() {
   log "✅ All WAN containers stopped and removed."
 }
 
+# ------------------------------------------------------------------------------
+# Function: Run pbr-setup.sh and add alias for manual PBR runs
+# ------------------------------------------------------------------------------
+pbr_initial_setup() {
+  log "Running Policy based routing setup script..."
+  if [ -f "$BASE_DIR/pbr-setup.sh" ]; then
+    "$BASE_DIR/pbr-setup.sh"
+    if ! grep -q "pbr-setup.sh" /home/admin/.bashrc; then
+      echo "alias pbr-setup='sudo bash $BASE_DIR/pbr-setup.sh'" >> /home/admin/.bashrc
+      echo "✅  Added alias: pbr-setup (rerun policy routing)"
+    else
+      echo "ℹ️  Alias pbr-setup already present in .bashrc"
+    fi
+  else
+    echo "⚠️  No pbr-setup.sh found in $BASE_DIR — skipping alias setup"
+  fi
+
+}
+
+
 # ------------------------------------------------------------------------------ 
 # Main
 # ------------------------------------------------------------------------------
@@ -132,6 +165,11 @@ case "$1" in
     start_wireguard
     start_zerotier
     ;;
+  initial)
+    start_wireguard
+    start_zerotier
+    pbr_initial_setup
+    ;;    
   stop)
     stop_all
     ;;

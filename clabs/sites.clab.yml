@@ -1,0 +1,215 @@
+# Author: Yonz / Net-Innovate Solutions GmbH
+name: sites
+topology:
+  nodes:
+# Direct Internet Connection - This node represents the Internet. This gives the site internet access. 
+    earth:
+      kind: linux
+      labels:
+        name: "Mother Earth"
+        description: "
+                      This represents the ISPs Internet connection and the Zerotier Termination node 
+                      Some traffic will be routed directly from here to the internet (e.g. Traffic to the 'Microsoft Front Door'),
+                      Real Internet traffic will be routed to a tunnel towards a 'Secure Web Gateway' (SWG)
+                      The ZeroTier (ZT) Tunnel (or other similar Technlogy) will also terminate here. 
+                      The Inter-Site Office (VLAN=10) and Production (VLAN=20) traffic will be routed through the ZT Tunnel.
+                      Other VLANs don't need to be routed through the ZT Tunnel. (Guest goes to the SWG and IOT is just local, 
+                      with a potential restricted acces to the SWG (to get SW upadtes)
+                      "
+        comment: "This is a dummy node, just to get the SIP Internet and ZT Tunnel Termination visualized in the topology."
+      image: wbitt/network-multitool:latest
+      ports:
+        - 9100:80
+      group: "Cloud-WAN"
+
+# Switches. Sonic 11 Core SW Site 1, Sonic12 access switch Site 1. Sonic 21 Core Sw. Site 2, Sonic 22 access switch Site 2
+    wan1:
+      kind: sonic-vs
+      image: docker-sonic-vs:latest
+      labels:
+        name: "wan1"
+        description: "Core Switch Site 1"
+      binds:
+        - ./frr/wan1/daemons:/etc/frr/daemons
+        - ./frr/wan1/frr.conf:/etc/frr/frr.conf  
+      group: "Site 1"
+    access1:
+      kind: sonic-vs
+      image: docker-sonic-vs:latest
+      labels:
+        name: "access1"
+        description: "Access Switch Site 1"          
+      binds:
+        - ./frr/access1/daemons:/etc/frr/daemons
+        - ./frr/access1/frr.conf:/etc/frr/frr.conf        
+      group: "Site 1"
+    wan2:
+      kind: sonic-vs
+      image: docker-sonic-vs:latest
+      labels:
+        name: "wan2"
+        description: "Core Switch Site 2"        
+      binds:
+        - ./frr/wan2/daemons:/etc/frr/daemons
+        - ./frr/wan2/frr.conf:/etc/frr/frr.conf       
+      group: "Site 2"
+    access2:
+      kind: sonic-vs
+      image: docker-sonic-vs:latest
+      labels:
+        name: "access2"
+        description: "Access Switch Site 2"          
+      binds:
+        - ./frr/access2/daemons:/etc/frr/daemons
+        - ./frr/access2/frr.conf:/etc/frr/frr.conf        
+      group: "Site 1"
+#
+# VLAN Configuration: (Note:  The Site ID is the second octet of the IP address, 
+#                             the VLAN ID is the 3rd octet of the IP address.)
+  # Site 1
+    # VLAN 01: Guest Network (default)  - IP address  10.1.1.0/24
+    # VLAN 10: Office                   - IP address  10.1.10.0/24 
+    # VLAN 20: Production               - IP address  10.1.20.0/24
+    # VLAN 30: IoT Devices              - IP address  10.1.30.0/24
+  # Site 2
+    # VLAN 01: Guest Network (default)  - IP address  10.2.1.0/24
+    # VLAN 10: Office                   - IP address  10.2.10.0/24 
+    # VLAN 20: Production               - IP address  10.2.20.0/24
+    # VLAN 30: IoT Devices              - IP address  10.2.30.0/24
+  # Note:
+  # 
+# routing and firewalling will be done on the core switches. Following rules will be required:
+  #   1) Inter-VLAN routing will be disabled on the access switches
+  #   2) The Core Switches will route traffic between the VLANs
+  #   3) The Core Switches will route traffic to the Internet via a policy based rules:
+  #       IF traffic is destined for the 'Microsoft Front Door': routed directly to the Internet
+  #       ELSE: traffic will be routed to a Secure Web Gateway (SWG) via a SWG Tunnel
+  #   4) The Core Switches will route traffic between the sites via a ZeroTrust Tunnel (VLANS 10 and 20)
+
+# Layer 3 Services (DHCP, DNS, NTP, etc.) will be provided by the Core Switches. (Note: This 'Container-Lab' uses static IPs)
+# DHCP Addresses will be assigned based on the VLAN ID. Only VLANs 01 and 10 will get Dynamic Addresses.
+# The Core Switches will also provide the default gateway for the VLANs.
+
+
+# Linux Clients  for Site 1: Linux11-13
+    linux11:
+      kind: linux
+      image: wbitt/network-multitool:latest
+      exec:
+        - "ip addr add 10.1.1.11/24 dev eth1"
+      ports:
+        - 9111:80
+      group: "Site 1"        
+    linux12:
+      kind: linux
+      image: wbitt/network-multitool:latest
+      exec:
+        - "ip addr add 10.1.10.12/24 dev eth1"
+      ports:
+        - 9112:80
+      group: "Site 1"        
+    linux13:
+      kind: linux
+      image: wbitt/network-multitool:latest
+      exec:
+        - "ip addr add 10.1.20.13/24 dev eth1"
+      ports:
+        - 9113:80
+      group: "Site 1"   
+
+    # IOT Devices on Site 1 (represented here by a simple alpine container)
+    iot11:
+      kind: linux
+      image: alpine:latest
+      exec:
+        - "ip addr add 10.1.30.11/24 dev eth1"
+      group: "Site 1" 
+    iot12:
+      kind: linux
+      image: alpine:latest
+      exec:
+        - "ip addr add 10.1.30.12/24 dev eth1"
+      group: "Site 1"          
+#
+# Linux Clients for Site 2; Linux21-22             
+    linux21:
+      kind: linux
+      image: wbitt/network-multitool:latest
+      exec:
+        - "ip addr add 10.2.1.21/24 dev eth1"
+      ports:
+        - 9121:80
+      group: "Site 2"        
+    linux22:
+      kind: linux
+      image: wbitt/network-multitool:latest
+      exec:
+        - "ip addr add 10.2.10.22/24 dev eth1"
+      ports:
+        - 9122:80
+      group: "Site 2"        
+    linux23:
+      kind: linux
+      image: wbitt/network-multitool:latest
+      exec:
+        - "ip addr add 10.2.20.23/24 dev eth1"
+      ports:
+        - 9123:80
+      group: "Site 2"   
+
+    # IOT Devices on Site 1 (represented here by a simple alpine container)
+    iot21:
+      kind: linux
+      image: alpine:latest
+      exec:
+        - "ip addr add 10.2.30.11/24 dev eth1"
+      group: "Site 2" 
+    iot22:
+      kind: linux
+      image: alpine:latest
+      exec:
+        - "ip addr add 10.2.30.12/24 dev eth1"
+      group: "Site 2"     
+  #
+  #                 
+  links:
+    # Site 1
+    #
+    # WAN Link from earth to Ethernet4, 6 and 8 on core switches
+    - endpoints: ["earth:eth1", "wan1:Ethernet4"] # ISP's Internet Connection (Pure internet, only used for Microsoft Front Door traffic)
+    - endpoints: ["earth:eth2", "wan1:Ethernet6"] # ZeroTier Tunnel Termination for Site-to-Site connectivity
+    - endpoints: ["earth:eth3", "wan1:Ethernet8"] # SWG Tunnel Termination for Secure Internet Gateway
+    
+    # Connection to an access switch (small network, core and distribution "collapsed" into one switch") 
+    - endpoints: ["wan1:Ethernet10", "access1:Ethernet4"]
+
+    # Connect Clients to the access switch - Using three VLANs (10, 20, 30) VLAN ID = 3rd octet of IP address
+    # Switch Ports 12 - 23 are used for the clients. VLAN configuration t.b.d
+    - endpoints: ["access1:Ethernet12", "linux11:eth1"]     # VLAN 1 (Guest - default)
+    - endpoints: ["access1:Ethernet14", "linux12:eth1"]     # VLAN 10 (Office)
+    - endpoints: ["access1:Ethernet16", "linux13:eth1"]     # VLAN 20 (Production)
+
+    # Switch Ports 24 - 31 are used for the IOT devices. VLAN config: untagged VLAN 30
+    - endpoints: ["access1:Ethernet24", "iot11:eth1"]     # VLAN 30 (IOT Network)
+    - endpoints: ["access1:Ethernet26", "iot12:eth1"]     # VLAN 30 (IOT Network)
+
+    # Site 2
+    #
+    # WAN Link from earth to Ethernet4, 6 and 8 on core switches
+    - endpoints: ["earth:eth4", "wan2:Ethernet4"] # ISP's Internet Connection (Pure internet, only used for Microsoft Front Door traffic)
+    - endpoints: ["earth:eth5", "wan2:Ethernet6"] # ZeroTier Tunnel Termination for Site-to-Site connectivity
+    - endpoints: ["earth:eth6", "wan2:Ethernet8"] # SWG Tunnel Termination for Secure Internet Gateway
+
+    # Connection to an access switch (small network, core and distribution "collapsed" into one switch") 
+    - endpoints: ["wan2:Ethernet10", "access2:Ethernet4"]
+
+    # Connect Clients to the access switch - Using three VLANs (10, 20, 30) VLAN ID = 3rd octet of IP address
+    # Switch Ports 12 - 23 are used for the clients. VLAN configuration t.b.d
+    - endpoints: ["access2:Ethernet12", "linux21:eth1"]     # VLAN 1 (Guest - default)
+    - endpoints: ["access2:Ethernet14", "linux22:eth1"]     # VLAN 10 (Office)
+    - endpoints: ["access2:Ethernet16", "linux23:eth1"]     # VLAN 20 (Production)
+
+    # Switch Ports 24 - 31 are used for the IOT devices. VLAN config: untagged VLAN 30
+    - endpoints: ["access2:Ethernet24", "iot21:eth1"]     # VLAN 30 (IOT Network)
+    - endpoints: ["access2:Ethernet26", "iot22:eth1"]     # VLAN 30 (IOT Network)
+
