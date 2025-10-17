@@ -188,8 +188,6 @@ cython_debug/
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
-# Ruff stuff:
-.ruff_cache/
 
 # PyPI configuration file
 .pypirc
@@ -201,10 +199,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Marimo
-marimo/_static/
-marimo/_lsp/
-__marimo__/
-
 # Secrets
 .secrets/
+
+*.tar.gz
+*.tar
+
