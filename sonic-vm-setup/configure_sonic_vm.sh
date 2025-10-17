@@ -28,9 +28,9 @@ BASE_DIR_HOST="${PWD}"
 
 # --- Local File Paths ---
 SSH_KEY_PUB="${HOME}/.ssh/id_ed25519.pub"
-DNS_SCRIPT="dns-config.sh"
-SIDECAR_CONTAINERS_SCRIPT="wan-containers.sh"
-PBR_SETUP_SCRIPT="pbr-setup.sh"
+DNS_SCRIPT="VM/dns-config.sh"
+SIDECAR_CONTAINERS_SCRIPT="VM/wan-containers.sh"
+PBR_SETUP_SCRIPT="VM/pbr-setup.sh"
 
 ZEROTIER_IMAGE_PATH="${BASE_DIR_HOST}/containers/zerotier/zerotier.tar.gz"
 WIREGUARD_IMAGE_PATH="${BASE_DIR_HOST}/containers/wireguard/wireguard.tar.gz"
@@ -63,9 +63,10 @@ echo ""
 # === 2. Transfer and Run DNS Configuration Script ===
 echo "▶️  Step 2: Configuring DNS on the VM..."
 scp "$DNS_SCRIPT" "${VM_USER}@${VM_HOST}:${REMOTE_HOME_DIR}"
-ssh "${VM_USER}@${VM_HOST}" "sudo ${REMOTE_HOME_DIR}/${DNS_SCRIPT}"
+ssh "${VM_USER}@${VM_HOST}" "sudo ${REMOTE_HOME_DIR}/${DNS_SCRIPT###*/}"
 echo "✅ DNS configuration script executed and cleaned up."
 echo ""
+
 
 # === 3. Transfer Docker Container Images ===
 echo "▶️  Step 5: Transferring Docker images..."
@@ -79,32 +80,33 @@ echo ""
 # === 4. Load Docker Images and Clean Up ===
 echo "▶️  Step 6: Loading images into Docker and cleaning up..."
 # Define the remote commands in a 'here document' for clarity
-ssh "${VM_USER}@${VM_HOST}" << 'END_OF_COMMANDS'
+ssh "${VM_USER}@${VM_HOST}" << END_OF_COMMANDS
   set -e
   echo "  -> Loading ZeroTier image..."
-  sudo docker load < /home/admin/sonic-wan/container-images/zerotier.tar.gz
+  sudo docker load < ${REMOTE_IMAGE_DIR}/${ZEROTIER_IMAGE_PATH###*/}/
 
   echo "  -> Loading WireGuard image..."
-  sudo docker load < /home/admin/sonic-wan/container-images/wireguard.tar.gz
+  sudo docker load < ${REMOTE_IMAGE_DIR}/${WIREGUARD_IMAGE_PATH###*/}
 
   echo "  -> Removing archive files..."
-  rm /home/admin/sonic-wan/container-images/*.tar.gz
+  rm ${REMOTE_IMAGE_DIR}/*.tar.gz
 END_OF_COMMANDS
 echo "✅ Docker images loaded and archives removed."
 echo ""
+
 
 # === 5a. Spin up the sidecar containers running Zerotier and Wireguard ===
 echo "▶️  Step 5: Starting Sidecar Containers - Zerotier and WireGuard inside the VM..."
 # Ensure the target directory exists on the remote machine
 ssh "${VM_USER}@${VM_HOST}" "mkdir -p '${REMOTE_SECRETS_DIR}'"
-scp -r "$SECRETS_DIR"/* "${VM_USER}@${VM_HOST}:${REMOTE_SECRETS_DIR}/"
+scp -r "${SECRETS_DIR}"/* "${VM_USER}@${VM_HOST}:${REMOTE_SECRETS_DIR}/"
 echo "✅ Sidecar Container config and identity files copied."
 echo ""
 
 # === 5b. Copy the wan-container.sh and pbr-setup script to the VM and run it
 scp "${SIDECAR_CONTAINERS_SCRIPT} ${PBR_SETUP_SCRIPT}"  "${VM_USER}@${VM_HOST}:${REMOTE_HOME_DIR}"
 # Note: The initial parameter is used to spin up both containers and run the initial pbr-setup script
-ssh "${VM_USER}@${VM_HOST}" "sudo ${REMOTE_HOME_DIR}/${SIDECAR_CONTAINERS_SCRIPT} initial"
+ssh "${VM_USER}@${VM_HOST}" "sudo ${REMOTE_HOME_DIR}/${SIDECAR_CONTAINERS_SCRIPT###*/} initial"
 echo "✅ Sidecar Containers started."
 echo ""
 
