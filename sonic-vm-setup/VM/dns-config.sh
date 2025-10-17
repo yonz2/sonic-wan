@@ -29,6 +29,12 @@ SECONDARY_DNS="8.8.8.8"
 # --- System File Paths ---
 RESOLVCONF_CONFIG_FILE="/etc/resolvconf/resolv.conf.d/head"
 
+# Check if this has already been  done ....
+if [ ! -f "$RESOLVCONF_CONFIG_FILE" ]; then
+    echo "✅ Info: DNS Configuration has already been done"
+    exit 0
+fi
+
 # --- Pre-flight Checks ---
 
 # 1. Ensure the script is run with root privileges
@@ -70,16 +76,15 @@ echo ""
 
 # --- Verification Steps ---
 
-echo "▶️  Verifying the new configuration..."
-echo "--- Contents of /etc/resolv.conf ---"
-cat /etc/resolv.conf
+echo "▶️  Verifying the new DNS configuration..."
+echo `sudo resolvconf -l`
 echo "------------------------------------"
 echo ""
 
 echo "▶️  Testing network connectivity by pinging a public host..."
 # We ping a reliable host to confirm that name resolution and outbound
 # connectivity are both working.
-if ping -c 3 registry-1.docker.io; then
+if ping -c 1 google.com; then
   echo "✅ DNS resolution appears to be working successfully!"
 else
   echo "⚠️ Warning: Ping test failed. There may be a firewall or network issue."

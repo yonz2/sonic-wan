@@ -63,6 +63,11 @@ VCPUS="2"            # Number of virtual CPUs
 BRIDGE_IF="br0"      # The host bridge for the VM's management interface
 DEFAULT_DISK_IMAGE="/var/lib/libvirt/images/sonic-vs.qcow2"
 
+# You can generate a random MAC or define one yourself.
+# The prefix 52:54:00 is commonly used for KVM/QEMU.
+STATIC_MAC="52:54:00:0E:5A:AE"
+STATIC_IP="192.168.178.132"
+
 # --- Argument Handling ---
 # Use the first command-line argument ($1) as the disk image path.
 # If no argument is provided, use the DEFAULT_DISK_IMAGE value.
@@ -94,7 +99,7 @@ sudo virt-install \
   --disk path="$DISK_IMAGE",format=qcow2 \
   --import \
   --os-variant generic \
-  --network bridge="$BRIDGE_IF",model=virtio \
+  --network bridge="$BRIDGE_IF",model=virtio,mac="$STATIC_MAC" \
   --graphics none \
   --noautoconsole
 

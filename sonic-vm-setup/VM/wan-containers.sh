@@ -58,6 +58,7 @@ start_zerotier() {
   log "Starting ZeroTier container (custom image: zerotier:wan)..."
 
   if [ ! -f "$ZEROTIER_DIR/identity.secret" ]; then
+    sudo mkdir -p ${ZEROTIER_DIR}
     sudo cp "$SECRETS_DIR/zerotier/"* "$ZEROTIER_DIR/"
     echo "✅  ZeroTier identities copied from $SECRETS_DIR/zerotier/"
   else
@@ -78,11 +79,17 @@ start_zerotier() {
     --device /dev/net/tun \
     -v /var/lib/zerotier-one:/var/lib/zerotier-one \
     -v "$LOG_DIR":/logs \
-    zerotier:wan >> "$LOG_DIR/zerotier.log" 2>&1
+    zerotier:wan
 
   sleep 2
+  ZT_DEVICEMAP=`cat ${SECRETS_DIR}/zerotier/devicemap`
+  ZT_NETWORKID={$ZT_DEVICEMAP%=*}
+  docker exec -it zerotier zerotier-cli join ${ZT_NETWORKID}
+  sleep 1
+  docker exec -it zerotier zerotier-cli info
+  docker exec -it zerotier zerotier-cli peers
   log "✅ ZeroTier container started (image: zerotier:wan, name: zerotier)."
-  log "   Join network using: docker exec -it zerotier zerotier-cli join <network-id>"
+  log "   Join network using: "
 }
 
 # ------------------------------------------------------------------------------ 
@@ -91,14 +98,14 @@ start_zerotier() {
 start_wireguard() {
   log "Starting WireGuard container (linuxserver/wireguard:latest)..."
 
-  if [ ! -f "$WIREGUARD_DIR/wg0.conf" ]; then
-    sudo cp "$SECRETS_DIR/wireguard/"* "$WIREGUARD_DIR/"
-    echo "✅  WireGuard configuration copied from $SECRETS_DIR/wireguard/"
+  if [ ! -f "${WIREGUARD_DIR}/wg0.conf" ]; then
+    sudo mkdir -p ${WIREGUARD_DIR}
+    sudo cp "${SECRETS_DIR}/wireguard/"* "${WIREGUARD_DIR}/"
+    sudo chmod 600 "${WIREGUARD_DIR}/*.conf"
+    echo "✅  WireGuard configuration copied from ${SECRETS_DIR}/wireguard/"
   else
     echo "ℹ️  WireGuard configuration already present, skipping copy."
   fi
-
-
 
   if sudo docker ps -a --format '{{.Names}}' | grep -q '^wireguard$'; then
     log "Existing WireGuard container found — removing..."
@@ -108,14 +115,12 @@ start_wireguard() {
   sudo docker run -d \
     --name wireguard \
     --restart=unless-stopped \
+    --net=host \
     --cap-add=NET_ADMIN \
-    --cap-add=SYS_MODULE \
     --device /dev/net/tun \
-    --sysctl net.ipv4.conf.all.src_valid_mark=1 \
-    --sysctl net.ipv4.ip_forward=1 \
     -v /etc/wireguard:/config \
     -v "$LOG_DIR":/logs \
-    linuxserver/wireguard:latest >> "$LOG_DIR/wireguard.log" 2>&1
+    linuxserver/wireguard:latest
 
   sleep 2
   log "✅ WireGuard container started (name: wireguard)."
