@@ -1,0 +1,22 @@
+server:
+  host: yonz.de
+  addresses:
+    - 172.27.66.1
+  dns:
+    - 1.1.1.1
+peers:
+  - name: iphone-yonz
+    addresses:
+      - 172.27.66.2
+    allowed_ips: []
+    client_allowed_ips: []
+  - name: wan-node1
+    addresses:
+      - 172.27.66.101
+    allowed_ips: []
+    client_allowed_ips: []
+  - name: wan-node2
+    addresses:
+      - 172.27.66.102
+    allowed_ips: []
+    client_allowed_ips: []
