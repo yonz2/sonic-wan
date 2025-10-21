@@ -329,7 +329,7 @@ graph TD
 ```mermaid
 graph LR
     subgraph Site A
-        Pkt_Orig"[IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1"]
+        Pkt_Orig["IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1"]
     end
     
     subgraph Underlay Network (e.g., Internet)
