@@ -358,3 +358,66 @@ graph LR
   * **Micro-segmentation:** Policies defined in OPA and enforced locally on each Secure-Sonic-WAN node create fine-grained segmentation, limiting communication to only what is explicitly allowed for a given identity. Even if a device is compromised, its ability to move laterally is severely restricted.
   * **Outbound-Only Connections:** Tunnels are typically initiated outbound from the edge device. This significantly reduces the attack surface exposed to the public internet, as there are fewer (or no) inbound ports listening for connections.
   * **Stateful Filtering Still Relevant:** While the traditional *perimeter* firewall's role is diminished, stateful packet filtering is still essential. This is typically implemented on the edge node itself (potentially using SONiC ACLs or Linux `nftables`/`iptables`) or on the endpoints to enforce the Zero Trust policies and block unwanted traffic, even after authentication. The key difference is that the *primary* security boundary is identity and policy, not just network topology.
+
+
+-----
+
+## Appendix D: Supporting Legacy IPv4-Only Devices via DS-Lite
+
+While the Secure-Sonic-WAN architecture is fundamentally IPv6-native, it acknowledges the reality of existing IPv4-only devices, particularly in industrial environments where equipment replacement cycles can be long. To accommodate these essential legacy systems without compromising the core IPv6 network, the **Dual-Stack Lite (DS-Lite)** transition mechanism is the recommended approach.
+
+### 1\. The Challenge: Isolated IPv4 Islands
+
+Legacy devices (e.g., industrial controllers, specific sensors) may only support IPv4 and might even have hardcoded private IPv4 addresses (e.g., `192.168.x.x`). These devices cannot directly participate in the IPv6 network. They require a way to communicate across the IPv6 WAN fabric to reach other IPv4 systems (e.g., a central control server also using a private IPv4 address) located at different sites or in a central data center. Direct internet connectivity is typically not required for these devices.
+
+### 2\. The Solution: DS-Lite Encapsulation
+
+DS-Lite provides a standardized method to tunnel IPv4 packets over an IPv6 network. It involves two key components:
+
+  * **B4 (Basic Bridging BroadBand) Element:** This functionality resides on the Secure-Sonic-WAN edge node. When it receives an IPv4 packet from a legacy device, it encapsulates the *entire* IPv4 packet within an IPv6 packet. The destination address of this outer IPv6 packet is set to the address of the AFTR.
+  * **AFTR (Address Family Transition Router):** This is a centralized gateway, typically located in a data center or regional hub. It receives the IPv6-encapsulated IPv4 packet from the B4 element. The AFTR decapsulates the packet, retrieving the original IPv4 packet. It then routes this IPv4 packet within the destination site's local IPv4 network (or another connected IPv4 network) towards the final IPv4 destination.
+
+Return traffic follows the reverse path: the AFTR encapsulates the IPv4 reply packet in IPv6 addressed back to the specific B4 element, which then decapsulates it and forwards the original IPv4 reply to the legacy device.
+
+### 3\. Integration with Secure-Sonic-WAN
+
+  * The DS-Lite B4 functionality can be implemented as another containerized service running alongside ZeroTier, WireGuard, etc., on the Secure-Sonic-WAN node. Standard Linux networking tools (`ip tunnel`, `ip6tnl`) can be used to create the necessary IPv4-in-IPv6 tunnels.
+  * A dedicated local network segment (using IPv4 addressing) connects the legacy devices to a specific interface on the Secure-Sonic-WAN node configured for B4 operation.
+  * Routing policies ensure that IPv4 traffic received from this segment is directed into the DS-Lite tunnel towards the AFTR's IPv6 address.
+  * Since these devices do not require internet access, the AFTR only needs to handle routing between the different private IPv4 segments connected via the IPv6 core. No public IPv4 NAT (NAT44) is needed at the AFTR for this specific use case, simplifying its configuration.
+
+### 4\. Visualization
+
+```mermaid
+sequenceDiagram
+    participant Legacy_IPv4 as Legacy IPv4 Device <br> (Site A - 192.168.1.50)
+    participant EdgeNode_A as Secure-Sonic-WAN (A) <br> (DS-Lite B4)
+    participant IPv6_Core as IPv6 Core Network <br> (ZeroTier/WireGuard)
+    participant AFTR as Central AFTR <br> (IPv4 Routing Hub)
+    participant EdgeNode_B as Secure-Sonic-WAN (B) <br> (DS-Lite B4)
+    participant Target_IPv4 as Target IPv4 System <br> (Site B - 192.168.2.100)
+
+    Legacy_IPv4->>+EdgeNode_A: 1. IPv4 Packet (Dst: 192.168.2.100)
+    EdgeNode_A->>+IPv6_Core: 2. Encapsulate in IPv6 (Dst: AFTR_IPv6)
+    IPv6_Core-->>AFTR: 3. Route IPv6 Packet
+    AFTR->>+EdgeNode_B: 4. Decapsulate, Route IPv4 <br> (Encapsulate in IPv6 Dst: EdgeNode_B_IPv6)
+    EdgeNode_B-->>-Target_IPv4: 5. Decapsulate, Send IPv4 Packet
+
+    %% Return Path
+    Target_IPv4->>+EdgeNode_B: 6. IPv4 Reply (Dst: 192.168.1.50)
+    EdgeNode_B->>+IPv6_Core: 7. Encapsulate in IPv6 (Dst: AFTR_IPv6)
+    IPv6_Core-->>AFTR: 8. Route IPv6 Reply
+    AFTR->>+EdgeNode_A: 9. Decapsulate, Route IPv4 <br> (Encapsulate in IPv6 Dst: EdgeNode_A_IPv6)
+    EdgeNode_A-->>-Legacy_IPv4: 10. Decapsulate, Send IPv4 Reply
+
+```
+
+*(Note: The diagram simplifies the AFTR routing step for clarity. The AFTR determines the correct outgoing B4 based on the IPv4 destination).*
+
+### 5\. Benefits and Considerations
+
+  * **Preserves IPv6 Core:** The main WAN infrastructure remains purely IPv6.
+  * **Supports Legacy:** Allows essential IPv4-only devices to communicate across sites.
+  * **No Internet Exposure:** As configured here (without NAT44 at the AFTR), this solution does not grant legacy devices direct internet access, maintaining security.
+  * **Requires AFTR:** This architecture depends on deploying and managing the central AFTR component.
+  * **Transitional Strategy:** DS-Lite is intended as a bridge to allow continued operation during the migration phase. The long-term objective should still favor replacing or upgrading legacy devices to support IPv6 natively.
