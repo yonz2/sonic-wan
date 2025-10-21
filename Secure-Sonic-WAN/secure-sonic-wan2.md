@@ -274,10 +274,10 @@ graph TD
 
     subgraph Factory_A ["Site 1 / Factory A: 2001:db8:factory1::/56"]
         direction TB
-        S1[Segment 1 ("e.g., Sensors"): /64]
-        S2[Segment 2 "(e.g., Controls"): /64]
-        S3[Segment 3 "(e.g., WiFi"): /64]
-        S4[...]
+        S1["Segment 1 (e.g., Sensors"): /64]
+        S2["Segment 2 (e.g., Controls"): /64]
+        S3["Segment 3 (e.g., WiFi"): /64]
+        S4"[..."]
     end
     
     subgraph Segment_1 ["Segment 1: 2001:db8:factory1:1::/64"]
