@@ -24,6 +24,7 @@ At the core of the architecture is a SONIC-based virtual or physical network app
 The design follows a modular principle: SONIC handles switching, routing, and ACLs; containers handle overlay networking (ZeroTier, WireGuard), identity (IAM agent), and policy enforcement (OPA-based). This ensures clean separation of concerns, high maintainability, and ease of automation.
 
 ```mermaid
+%%{init: {'theme':'default', 'themeVariables': { 'fontSize':'12px'}, 'sequence': {'width':530}}}%%
 graph TD
     subgraph Secure-Sonic-WAN Appliance
         direction TB
@@ -81,6 +82,7 @@ The Zero Trust principle of "never trust, always verify" is embedded at every la
 Instead of perimeter firewalls, each edge node enforces micro-segmentation policies locally. Outbound-only tunnel connections (e.g., via WireGuard or ZeroTier) ensure that no inbound traffic is accepted unless explicitly authorized. This drastically reduces the attack surface and prevents lateral movement.
 
 ```mermaid
+%%{init: {'theme':'default', 'themeVariables': { 'fontSize':'12px'}, 'sequence': {'width':530}}}%%
 sequenceDiagram
     participant Device
     participant IAM_Agent as IAM Agent (on node)
@@ -107,6 +109,7 @@ sequenceDiagram
 In a modern factory, hundreds of IoT sensors connect via WiFi and transmit operational data to a local message concentrator. The concentrator preprocesses data and securely forwards it to a central ERP/MES system through a WireGuard tunnel. Each sensor and concentrator authenticates via IAM, receives a certificate, and is assigned an IPv6 address. Zero Trust policies ensure sensors can only communicate with their local concentrator and IAM endpoints—nowhere else.
 
 ```mermaid
+%%{init: {'theme':'default', 'themeVariables': { 'fontSize':'12px'}, 'sequence': {'width':530}}}%%
 flowchart LR
     subgraph Factory Site
         direction TB
@@ -265,6 +268,7 @@ This appendix elaborates on the core IPv6 principles underpinning the Secure-Son
 <!-- end list -->
 
 ```mermaid
+%%{init: {'theme':'default', 'themeVariables': { 'fontSize':'12px'}, 'sequence': {'width':530}}}%%
 graph TD
     subgraph "Organization Allocation: /48"
         direction TB
@@ -304,6 +308,7 @@ graph TD
 <!-- end list -->
 
 ```mermaid
+%%{init: {'theme':'default', 'themeVariables': { 'fontSize':'12px'}, 'sequence': {'width':530}}}%%
 graph TD
     subgraph "Before: IPv4 with NAT"
         direction LR
@@ -330,6 +335,7 @@ graph TD
 <!-- end list -->
 
 ```mermaid
+%%{init: {'theme':'default', 'themeVariables': { 'fontSize':'12px'}, 'sequence': {'width':530}}}%%
 graph LR
     subgraph "Site A"
         Pkt_Orig["IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1"]
@@ -389,19 +395,26 @@ Return traffic follows the reverse path: the AFTR encapsulates the IPv4 reply pa
 ### 4\. Visualization
 
 ```mermaid
-sequenceDiagram
-    participant Legacy_IPv4 as Legacy IPv4 Device <br> (Site A - 192.168.1.50)
-    participant EdgeNode_A as Secure-Sonic-WAN (A) <br> (DS-Lite B4)
-    participant IPv6_Core as IPv6 Core Network <br> (ZeroTier/WireGuard)
-    participant AFTR as Central AFTR <br> (IPv4 Routing Hub)
-    participant EdgeNode_B as Secure-Sonic-WAN (B) <br> (DS-Lite B4)
-    participant Target_IPv4 as Target IPv4 System <br> (Site B - 192.168.2.100)
+---
+config:
+  layout: elk
+  theme: 'forest'
+---
+%%{init: { "sequence": { "wrap": true, "width":600 } } }%%
 
-    Legacy_IPv4->>+EdgeNode_A: 1. IPv4 Packet (Dst: 192.168.2.100)
-    EdgeNode_A->>+IPv6_Core: 2. Encapsulate in IPv6 (Dst: AFTR_IPv6)
-    IPv6_Core-->>AFTR: 3. Route IPv6 Packet
-    AFTR->>+EdgeNode_B: 4. Decapsulate, Route IPv4 <br> (Encapsulate in IPv6 Dst: EdgeNode_B_IPv6)
-    EdgeNode_B-->>-Target_IPv4: 5. Decapsulate, Send IPv4 Packet
+    sequenceDiagram
+        participant Legacy_IPv4 as Legacy IPv4 Device <br> (Site A - 192.168.1.50)
+        participant EdgeNode_A as Secure-Sonic-WAN (A) <br> (DS-Lite B4)
+        participant IPv6_Core as IPv6 Core Network <br> (ZeroTier/WireGuard)
+        participant AFTR as Central AFTR <br> (IPv4 Routing Hub)
+        participant EdgeNode_B as Secure-Sonic-WAN (B) <br> (DS-Lite B4)
+        participant Target_IPv4 as Target IPv4 System <br> (Site B - 192.168.2.100)
+
+        Legacy_IPv4->>+EdgeNode_A: 1. IPv4 Packet (Dst: 192.168.2.100)
+        EdgeNode_A->>+IPv6_Core: 2. Encapsulate in IPv6 (Dst: AFTR_IPv6)
+        IPv6_Core-->>AFTR: 3. Route IPv6 Packet
+        AFTR->>+EdgeNode_B: 4. Decapsulate, Route IPv4 <br> (Encapsulate in IPv6 Dst: EdgeNode_B_IPv6)
+        EdgeNode_B-->>-Target_IPv4: 5. Decapsulate, Send IPv4 Packet
 
     %% Return Path
     Target_IPv4->>+EdgeNode_B: 6. IPv4 Reply (Dst: 192.168.1.50)
@@ -421,3 +434,5 @@ sequenceDiagram
   * **No Internet Exposure:** As configured here (without NAT44 at the AFTR), this solution does not grant legacy devices direct internet access, maintaining security.
   * **Requires AFTR:** This architecture depends on deploying and managing the central AFTR component.
   * **Transitional Strategy:** DS-Lite is intended as a bridge to allow continued operation during the migration phase. The long-term objective should still favor replacing or upgrading legacy devices to support IPv6 natively.
+  
+  
