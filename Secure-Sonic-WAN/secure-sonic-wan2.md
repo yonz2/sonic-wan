@@ -307,7 +307,7 @@ graph TD
     subgraph Before: IPv4 with NAT
         direction LR
         IP4_A["Device A <br> 192.168.1.10"] -- X
-        IP4_B"[Device B <br> 192.168.1.11"] -- X
+        IP4_B["Device B <br> 192.168.1.11"] -- X
         X("NAT Router <br> 203.0.113.5") --> Internet4([Internet])
     end
     
