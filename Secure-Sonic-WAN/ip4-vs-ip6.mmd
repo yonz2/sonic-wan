@@ -1,0 +1,20 @@
+%%{init: {'theme':'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'lineColor': '#000000', 'edgeLabelBackground':'#ffffff', 'fontSize': '18px' }}}%%
+
+flowchart LR
+    subgraph "Legacy IPv4 / VLAN Model"
+        L1["Private IPv4 Addresses"]
+        L2["VLAN Segmentation"]
+        L3["NAT + Firewalls"]
+        L4["Site-to-Site VPNs"]
+        L1 --> L2 --> L3 --> L4
+    end
+
+    subgraph "Secure-Sonic-WAN (IPv6 + ZeroTrust)"
+        M1["Global IPv6 Addressing"]
+        M2["Identity-Based Access (IAM)"]
+        M3["Encrypted Outbound Tunnels (TLS/WG)"]
+        M4["Policy-Based Routing (SONiC PBR)"]
+        M1 --> M2 --> M3 --> M4
+    end
+
+    Legacy -->|"Replaced by"| Modern

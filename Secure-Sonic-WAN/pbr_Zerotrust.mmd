@@ -1,0 +1,16 @@
+%%{init: {'theme':'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'lineColor': '#000000', 'edgeLabelBackground':'#ffffff', 'fontSize': '18px' }}}%%
+
+sequenceDiagram
+    participant Device as "IoT Device (IPv6)"
+    participant Sonic as "Secure-Sonic-WAN"
+    participant IAM as "IAM / Policy Engine"
+    participant Tunnel as "WireGuard / ZeroTier"
+    participant Cloud as "Cloud Service / Data Center"
+
+    Device->>Sonic: "Outbound IPv6 connection attempt"
+    Sonic->>IAM: "Authenticate identity & context"
+    IAM-->>Sonic: "Policy decision (tunnel type, ACL)"
+    Sonic->>Tunnel: "Establish outbound encrypted tunnel"
+    Tunnel-->>Cloud: "Forward traffic securely"
+    Cloud-->>Device: "Response (via authenticated session)"
+    Note over Sonic, IAM: "No inbound connections \nNo static firewall rules\nZeroTrust enforcement"

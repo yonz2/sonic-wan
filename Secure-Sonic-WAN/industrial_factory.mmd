@@ -1,0 +1,23 @@
+%%{init: {'theme':'base', 'themeVariables': { 'background': '#ffffff', 'primaryColor': '#ffffff', 'primaryTextColor': '#000000', 'lineColor': '#000000', 'edgeLabelBackground':'#ffffff', 'fontSize': '18px' }}}%%
+
+graph TD
+    subgraph "Factory Network"
+        D1["IoT Sensors / Machines"]
+        D2["Local Message Concentrator"]
+        D3["Secure-Sonic-WAN Appliance"]
+    end
+
+    subgraph "Secure WAN / Internet"
+        T1["WireGuard / ZeroTier Tunnel"]
+    end
+
+    subgraph "Headquarters / Cloud"
+        C1["ERP / MES System"]
+        C2["IAM Service"]
+    end
+
+    D1 -->|"IPv6 / MQTT / HTTPS"| D2
+    D2 -->|"Authenticated Connection"| D3
+    D3 -->|"Outbound Encrypted Tunnel"| T1
+    T1 -->|"IAM-Verified Traffic"| C1
+    D3 -->|"Identity Sync"| C2
