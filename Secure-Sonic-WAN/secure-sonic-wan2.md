@@ -244,41 +244,117 @@ Okay, here is the additional appendix explaining the IPv6 concepts used in the S
 
 ---
 
+Here is the updated Appendix C, now including Mermaid diagrams to help visualize the IPv6 concepts.
+
+-----
+
 ## Appendix C: IPv6 Concepts in Secure-Sonic-WAN
 
 This appendix elaborates on the core IPv6 principles underpinning the Secure-Sonic-WAN architecture and their implications for addressing, routing, and security.
 
-### 1. Vast Address Space and Global Uniqueness
+### 1\. Vast Address Space and Global Uniqueness
 
-* **Concept:** IPv6 uses 128-bit addresses, compared to IPv4's 32 bits. This provides a virtually inexhaustible supply of unique IP addresses ($2^{128}$).
-* [cite_start]**Benefit:** Every device (servers, IoT sensors, user devices, etc.) can be assigned a **Globally Unique Address (GUA)**[cite: 64]. [cite_start]This eliminates the fundamental problem of IPv4 address scarcity that necessitated complex workarounds like NAT[cite: 39, 88].
+  * **Concept:** IPv6 uses 128-bit addresses, compared to IPv4's 32 bits. This provides a virtually inexhaustible supply of unique IP addresses ($2^{128}$).
+  * **Benefit:** Every device (servers, IoT sensors, user devices, etc.) can be assigned a **Globally Unique Address (GUA)**. This eliminates the fundamental problem of IPv4 address scarcity that necessitated complex workarounds like NAT.
 
-### 2. Network Addressing Strategy
+### 2\. Network Addressing Strategy
 
-* [cite_start]**Per-Segment Allocation (`/64`):** The standard and strongly recommended practice in IPv6 is to allocate a `/64` prefix for each network segment (equivalent to a traditional LAN or VLAN)[cite: 66]. A `/64` provides $2^{64}$ addresses, which is vastly more than any conceivable number of devices on a single segment. This size simplifies address auto-configuration (SLAAC).
-* **Site/Organizational Allocation (`/48` or `/56`):** An organization typically receives a larger block from their ISP or a Regional Internet Registry (RIR). Common allocations include:
-    * **`/48`**: Provides $2^{16}$ (65,536) individual `/64` subnets. This is often allocated to an entire organization and is sufficient for thousands of network segments across multiple sites.
-    * **`/56`**: Provides $2^8$ (256) individual `/64` subnets. This might be allocated per site (e.g., per factory).
-* **Example (Factory IoT):** A factory site could receive a `/56` prefix (e.g., `2001:db8:factory1::/56`). Within this, separate `/64` subnets could be assigned for different zones or device types (e.g., `2001:db8:factory1:1::/64` for Sensor Network A, `2001:db8:factory1:2::/64` for Sensor Network B, etc.). [cite_start]Even with thousands of IoT devices per `/64`, the address space is ample[cite: 68].
+  * **Per-Segment Allocation (`/64`):** The standard and strongly recommended practice in IPv6 is to allocate a `/64` prefix for each network segment (equivalent to a traditional LAN or VLAN). A `/64` provides $2^{64}$ addresses, which is vastly more than any conceivable number of devices on a single segment. This size simplifies address auto-configuration (SLAAC).
+  * **Site/Organizational Allocation (`/48` or `/56`):** An organization typically receives a larger block from their ISP or a Regional Internet Registry (RIR). Common allocations include:
+      * **`/48`**: Provides $2^{16}$ (65,536) individual `/64` subnets. This is often allocated to an entire organization and is sufficient for thousands of network segments across multiple sites.
+      * **`/56`**: Provides $2^8$ (256) individual `/64` subnets. This might be allocated per site (e.g., per factory).
+  * **Example (Factory IoT):** A factory site could receive a `/56` prefix (e.g., `2001:db8:factory1::/56`). Within this, separate `/64` subnets could be assigned for different zones or device types (e.g., `2001:db8:factory1:1::/64` for Sensor Network A, `2001:db8:factory1:2::/64` for Sensor Network B, etc.). Even with thousands of IoT devices per `/64`, the address space is ample.
 
-### 3. Elimination of Network Address Translation (NAT)
+<!-- end list -->
 
-* [cite_start]**Why NAT is Obsolete:** NAT (specifically NAPT) was primarily invented to conserve scarce public IPv4 addresses by multiplexing many private addresses behind one public address[cite: 39, 88]. [cite_start]With the vast GUA space in IPv6, this core motivation disappears[cite: 64].
-* **Benefits of No NAT:**
-    * [cite_start]**Restored End-to-End Connectivity:** Devices can communicate directly using their unique GUAs without an intermediary modifying addresses[cite: 65]. This simplifies application development and peer-to-peer communication.
-    * [cite_start]**Simplified Routing:** Routing becomes straightforward as addresses are globally unique and consistent across the network[cite: 89].
-    * [cite_start]**Reduced Complexity:** Eliminates the need for NAT configuration, troubleshooting NAT traversal issues (STUN/TURN/ICE), and managing overlapping private address spaces between sites[cite: 64, 89].
+```mermaid
+graph TD
+    subgraph Organization [Organization Allocation: /48]
+        direction TB
+        F1[Site 1 / Factory A: /56]
+        F2[Site 2 / Factory B: /56]
+        F3[...]
+    end
 
-### 4. Routing Through Tunnels (ZeroTier/WireGuard)
+    subgraph Factory_A [Site 1 / Factory A: 2001:db8:factory1::/56]
+        direction TB
+        S1[Segment 1 (e.g., Sensors): /64]
+        S2[Segment 2 (e.g., Controls): /64]
+        S3[Segment 3 (e.g., WiFi): /64]
+        S4[...]
+    end
+    
+    subgraph Segment_1 [Segment 1: 2001:db8:factory1:1::/64]
+        direction TB
+        D1[Device 1]
+        D2[Device 2]
+        D3[... 2^64 addresses]
+    end
 
-* **Encapsulation:** When an IPv6 packet needs to traverse a tunnel (like WireGuard or ZeroTier), it is simply encapsulated within the tunnel protocol's packets. The original source and destination IPv6 addresses remain unchanged inside the encapsulated packet.
-* **Overlay Routing:** The tunnel interfaces (`zt0`, `wg0`) appear as regular network interfaces to the operating system (SONiC). Routing decisions (either standard routing or policy-based routing) direct the original IPv6 packet towards the appropriate tunnel interface. The tunnel software then handles the encapsulation and transmission across the underlying network (which could be IPv4 or IPv6).
-* [cite_start]**End-to-End Principle:** Because NAT is eliminated and addresses are globally unique, the IPv6 packet arrives at the destination with its original source and destination addresses intact, preserving the end-to-end communication model[cite: 65].
+    Organization --> F1
+    F1 --> S1
+    S1 --> D1
+```
 
-### 5. Reduced Emphasis on Traditional Perimeter Firewalls
+### 3\. Elimination of Network Address Translation (NAT)
 
-* [cite_start]**Shift to Zero Trust:** The Secure-Sonic-WAN architecture adopts Zero Trust principles, meaning trust is never assumed based on network location[cite: 70]. [cite_start]Security shifts from guarding the perimeter to verifying identity and enforcing granular policies at the endpoint or edge node[cite: 72, 73].
-* [cite_start]**Identity as the New Perimeter:** Access is granted based on authenticated and authorized identities (users, devices, services) managed by an IAM system, not just IP addresses or VLANs[cite: 53, 71, 90].
-* [cite_start]**Micro-segmentation:** Policies defined in OPA and enforced locally on each Secure-Sonic-WAN node create fine-grained segmentation, limiting communication to only what is explicitly allowed for a given identity[cite: 61, 73]. Even if a device is compromised, its ability to move laterally is severely restricted.
-* [cite_start]**Outbound-Only Connections:** Tunnels are typically initiated outbound from the edge device[cite: 74]. [cite_start]This significantly reduces the attack surface exposed to the public internet, as there are fewer (or no) inbound ports listening for connections[cite: 91].
-* **Stateful Filtering Still Relevant:** While the traditional *perimeter* firewall's role is diminished, stateful packet filtering is still essential. This is typically implemented on the edge node itself (potentially using SONiC ACLs or Linux `nftables`/`iptables`) or on the endpoints to enforce the Zero Trust policies and block unwanted traffic, even after authentication. The key difference is that the *primary* security boundary is identity and policy, not just network topology.
+  * **Why NAT is Obsolete:** NAT (specifically NAPT) was primarily invented to conserve scarce public IPv4 addresses by multiplexing many private addresses behind one public address. With the vast GUA space in IPv6, this core motivation disappears.
+  * **Benefits of No NAT:**
+      * **Restored End-to-End Connectivity:** Devices can communicate directly using their unique GUAs without an intermediary modifying addresses. This simplifies application development and peer-to-peer communication.
+      * **Simplified Routing:** Routing becomes straightforward as addresses are globally unique and consistent across the network.
+      * **Reduced Complexity:** Eliminates the need for NAT configuration, troubleshooting NAT traversal issues (STUN/TURN/ICE), and managing overlapping private address spaces between sites.
+
+<!-- end list -->
+
+```mermaid
+graph TD
+    subgraph Before: IPv4 with NAT
+        direction LR
+        IP4_A[Device A <br> 192.168.1.10] -- X
+        IP4_B[Device B <br> 192.168.1.11] -- X
+        X(NAT Router <br> 203.0.113.5) --> Internet4([Internet])
+    end
+    
+    subgraph After: IPv6 (No NAT)
+        direction LR
+        IP6_A[Device A <br> 2001:db8:a::10] --> Internet6([Internet])
+        IP6_B[Device B <br> 2001:db8:a::11] --> Internet6
+    end
+```
+
+### 4\. Routing Through Tunnels (ZeroTier/WireGuard)
+
+  * **Encapsulation:** When an IPv6 packet needs to traverse a tunnel (like WireGuard or ZeroTier), it is simply encapsulated within the tunnel protocol's packets. The original source and destination IPv6 addresses remain unchanged inside the encapsulated packet.
+  * **Overlay Routing:** The tunnel interfaces (`zt0`, `wg0`) appear as regular network interfaces to the operating system (SONiC). Routing decisions (either standard routing or policy-based routing) direct the original IPv6 packet towards the appropriate tunnel interface. The tunnel software then handles the encapsulation and transmission across the underlying network (which could be IPv4 or IPv6).
+  * **End-to-End Principle:** Because NAT is eliminated and addresses are globally unique, the IPv6 packet arrives at the destination with its original source and destination addresses intact, preserving the end-to-end communication model.
+
+<!-- end list -->
+
+```mermaid
+graph LR
+    subgraph Site A
+        Pkt_Orig[IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1]
+    end
+    
+    subgraph Underlay Network (e.g., Internet)
+        Pkt_Encap[Encapsulated Packet <br> (WireGuard/UDP Header) <br> [IPv6 Packet]]
+    end
+    
+    subgraph Site B
+        Pkt_Final[IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1]
+    end
+
+    Pkt_Orig -- 1. Route to wg0 --> WG_A(wg0 Interface <br> Encapsulation)
+    WG_A --> Pkt_Encap
+    Pkt_Encap --> WG_B(wg0 Interface <br> Decapsulation)
+    WG_B -- 2. Forward to Dest --> Pkt_Final
+```
+
+### 5\. Reduced Emphasis on Traditional Perimeter Firewalls
+
+  * **Shift to Zero Trust:** The Secure-Sonic-WAN architecture adopts Zero Trust principles, meaning trust is never assumed based on network location. Security shifts from guarding the perimeter to verifying identity and enforcing granular policies at the endpoint or edge node.
+  * **Identity as the New Perimeter:** Access is granted based on authenticated and authorized identities (users, devices, services) managed by an IAM system, not just IP addresses or VLANs.
+  * **Micro-segmentation:** Policies defined in OPA and enforced locally on each Secure-Sonic-WAN node create fine-grained segmentation, limiting communication to only what is explicitly allowed for a given identity. Even if a device is compromised, its ability to move laterally is severely restricted.
+  * **Outbound-Only Connections:** Tunnels are typically initiated outbound from the edge device. This significantly reduces the attack surface exposed to the public internet, as there are fewer (or no) inbound ports listening for connections.
+  * **Stateful Filtering Still Relevant:** While the traditional *perimeter* firewall's role is diminished, stateful packet filtering is still essential. This is typically implemented on the edge node itself (potentially using SONiC ACLs or Linux `nftables`/`iptables`) or on the endpoints to enforce the Zero Trust policies and block unwanted traffic, even after authentication. The key difference is that the *primary* security boundary is identity and policy, not just network topology.
+  
