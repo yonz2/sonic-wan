@@ -396,9 +396,25 @@ Return traffic follows the reverse path: the AFTR encapsulates the IPv4 reply pa
 
 ```mermaid
 ---
-config:
-  layout: elk
-  theme: 'forest'
+title: "long flow chart"
+
+format:
+  html:
+    toc: true 
+  pdf:
+    documentclass: article
+    number-sections: true
+    code-fold: true
+    classoption: "margin=1in"
+    header-includes:
+      - \setlength{\oddsidemargin}{0in}
+      - \setlength{\evensidemargin}{0in}
+      - \setlength{\textwidth}{6.5in}
+      - \setlength{\topmargin}{0in}
+      - \setlength{\textheight}{9in}
+    page-size: a4
+    margin: 1in
+
 ---
 %%{init: { "sequence": { "wrap": true, "width":600 } } }%%
 
