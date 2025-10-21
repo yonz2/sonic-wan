@@ -242,10 +242,6 @@ This appendix lists examples of hardware vendors and platform types potentially 
 
 Okay, here is the additional appendix explaining the IPv6 concepts used in the Secure-Sonic-WAN architecture, formatted in Markdown without the citation artifacts.
 
----
-
-Here is the updated Appendix C, now including Mermaid diagrams to help visualize the IPv6 concepts.
-
 -----
 
 ## Appendix C: IPv6 Concepts in Secure-Sonic-WAN
@@ -269,26 +265,26 @@ This appendix elaborates on the core IPv6 principles underpinning the Secure-Son
 
 ```mermaid
 graph TD
-    subgraph Organization [Organization Allocation: /48]
+    subgraph Organization ["Organization Allocation: /48"]
         direction TB
-        F1[Site 1 / Factory A: /56]
-        F2[Site 2 / Factory B: /56]
-        F3[...]
+        F1["Site 1 / Factory A: /56"]
+        F2["Site 2 / Factory B: /56"]
+        F3["..."]
     end
 
-    subgraph Factory_A [Site 1 / Factory A: 2001:db8:factory1::/56]
+    subgraph Factory_A ["Site 1 / Factory A: 2001:db8:factory1::/56"]
         direction TB
-        S1[Segment 1 (e.g., Sensors): /64]
-        S2[Segment 2 (e.g., Controls): /64]
-        S3[Segment 3 (e.g., WiFi): /64]
+        S1[Segment 1 ("e.g., Sensors"): /64]
+        S2[Segment 2 "(e.g., Controls"): /64]
+        S3[Segment 3 "(e.g., WiFi"): /64]
         S4[...]
     end
     
-    subgraph Segment_1 [Segment 1: 2001:db8:factory1:1::/64]
+    subgraph Segment_1 ["Segment 1: 2001:db8:factory1:1::/64"]
         direction TB
         D1[Device 1]
         D2[Device 2]
-        D3[... 2^64 addresses]
+        D3["... 2^64 addresses"]
     end
 
     Organization --> F1
@@ -310,15 +306,15 @@ graph TD
 graph TD
     subgraph Before: IPv4 with NAT
         direction LR
-        IP4_A[Device A <br> 192.168.1.10] -- X
-        IP4_B[Device B <br> 192.168.1.11] -- X
-        X(NAT Router <br> 203.0.113.5) --> Internet4([Internet])
+        IP4_A["Device A <br> 192.168.1.10"] -- X
+        IP4_B"[Device B <br> 192.168.1.11"] -- X
+        X("NAT Router <br> 203.0.113.5") --> Internet4([Internet])
     end
     
     subgraph After: IPv6 (No NAT)
         direction LR
-        IP6_A[Device A <br> 2001:db8:a::10] --> Internet6([Internet])
-        IP6_B[Device B <br> 2001:db8:a::11] --> Internet6
+        IP6_A["Device A <br> 2001:db8:a::10"] --> Internet6([Internet])
+        IP6_B["Device B <br> 2001:db8:a::11"] --> Internet6
     end
 ```
 
@@ -333,20 +329,20 @@ graph TD
 ```mermaid
 graph LR
     subgraph Site A
-        Pkt_Orig[IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1]
+        Pkt_Orig"[IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1"]
     end
     
     subgraph Underlay Network (e.g., Internet)
-        Pkt_Encap[Encapsulated Packet <br> (WireGuard/UDP Header) <br> [IPv6 Packet]]
+        Pkt_Encap["Encapsulated Packet <br> (WireGuard/UDP Header) <br> [IPv6 Packet]"]
     end
     
     subgraph Site B
-        Pkt_Final[IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1]
+        Pkt_Final["IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1"]
     end
 
-    Pkt_Orig -- 1. Route to wg0 --> WG_A(wg0 Interface <br> Encapsulation)
+    Pkt_Orig -- 1. Route to wg0 --> WG_A("wg0 Interface <br> Encapsulation")
     WG_A --> Pkt_Encap
-    Pkt_Encap --> WG_B(wg0 Interface <br> Decapsulation)
+    Pkt_Encap --> WG_B("wg0 Interface <br> Decapsulation")
     WG_B -- 2. Forward to Dest --> Pkt_Final
 ```
 
