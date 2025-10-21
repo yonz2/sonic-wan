@@ -242,6 +242,7 @@ This appendix lists examples of hardware vendors and platform types potentially 
 
 Okay, here is the additional appendix explaining the IPv6 concepts used in the Secure-Sonic-WAN architecture, formatted in Markdown without the citation artifacts.
 
+
 -----
 
 ## Appendix C: IPv6 Concepts in Secure-Sonic-WAN
@@ -259,31 +260,31 @@ This appendix elaborates on the core IPv6 principles underpinning the Secure-Son
   * **Site/Organizational Allocation (`/48` or `/56`):** An organization typically receives a larger block from their ISP or a Regional Internet Registry (RIR). Common allocations include:
       * **`/48`**: Provides $2^{16}$ (65,536) individual `/64` subnets. This is often allocated to an entire organization and is sufficient for thousands of network segments across multiple sites.
       * **`/56`**: Provides $2^8$ (256) individual `/64` subnets. This might be allocated per site (e.g., per factory).
-  * **Example (Factory IoT):** A factory site could receive a `/56` prefix (e.g., `2001:db8:factory1::/56`). Within this, separate `/64` subnets could be assigned for different zones or device types (e.g., `2001:db8:factory1:1::/64` for Sensor Network A, `2001:db8:factory1:2::/64` for Sensor Network B, etc.). Even with thousands of IoT devices per `/64`, the address space is ample.
+  * **Example (Factory IoT):** A factory site could receive a `/56` prefix (e.g., `2001:db8:factory1::/56`). Within this, separate `/64` subnets could be assigned for different zones or device types (e.g., `2001:db8:factory1:1::/64` for "Sensor Network A", `2001:db8:factory1:2::/64` for "Sensor Network B", etc.). Even with thousands of IoT devices per `/64`, the address space is ample.
 
 <!-- end list -->
 
 ```mermaid
 graph TD
-    subgraph Organization ["Organization Allocation: /48"]
+    subgraph "Organization Allocation: /48"
         direction TB
         F1["Site 1 / Factory A: /56"]
         F2["Site 2 / Factory B: /56"]
         F3["..."]
     end
 
-    subgraph Factory_A ["Site 1 / Factory A: 2001:db8:factory1::/56"]
+    subgraph "Site 1 / Factory A: 2001:db8:factory1::/56"
         direction TB
         S1["Segment 1 (e.g., Sensors): /64"]
         S2["Segment 2 (e.g., Controls): /64"]
         S3["Segment 3 (e.g., WiFi): /64"]
         S4["..."]
     end
-    
-    subgraph Segment_1 ["Segment 1: 2001:db8:factory1:1::/64"]
+
+    subgraph "Segment 1: 2001:db8:factory1:1::/64"
         direction TB
-        D1[Device 1]
-        D2[Device 2]
+        D1["Device 1"]
+        D2["Device 2"]
         D3["... 2^64 addresses"]
     end
 
@@ -304,17 +305,19 @@ graph TD
 
 ```mermaid
 graph TD
-    subgraph Before: IPv4 with NAT
+    subgraph "Before: IPv4 with NAT"
         direction LR
-        IP4_A["Device A <br> 192.168.1.10"] -- X
-        IP4_B["Device B <br> 192.168.1.11"] -- X
-        X("NAT Router <br> 203.0.113.5") --> Internet4([Internet])
+        IP4_A["Device A <br> 192.168.1.10"] --> X
+        IP4_B["Device B <br> 192.168.1.11"] --> X
+        Internet4(["Internet"])
+        X("NAT Router <br> 203.0.113.5") --> Internet4
     end
-    
-    subgraph After: IPv6 (No NAT)
+
+    subgraph "After: IPv6 (No NAT)"
         direction LR
-        IP6_A["Device A <br> 2001:db8:a::10"] --> Internet6([Internet])
+        IP6_A["Device A <br> 2001:db8:a::10"] --> Internet6
         IP6_B["Device B <br> 2001:db8:a::11"] --> Internet6
+        Internet6(["Internet"])
     end
 ```
 
@@ -328,22 +331,24 @@ graph TD
 
 ```mermaid
 graph LR
-    subgraph Site A
+    subgraph "Site A"
         Pkt_Orig["IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1"]
     end
-    
-    subgraph Underlay Network (e.g., Internet)
+
+    subgraph "Underlay Network (e.g., Internet)"
         Pkt_Encap["Encapsulated Packet <br> (WireGuard/UDP Header) <br> [IPv6 Packet]"]
+        Internet_Underlay(["Internet"])
     end
-    
-    subgraph Site B
+
+    subgraph "Site B"
         Pkt_Final["IPv6 Packet <br> Src: 2001:db8:A::1 <br> Dst: 2001:db8:B::1"]
     end
 
-    Pkt_Orig -- 1. Route to wg0 --> WG_A("wg0 Interface <br> Encapsulation")
-    WG_A --> Pkt_Encap
+    Pkt_Orig -- "1. Route to wg0" --> WG_A("wg0 Interface <br> Encapsulation")
+    WG_A --> Internet_Underlay
+    Internet_Underlay --> Pkt_Encap
     Pkt_Encap --> WG_B("wg0 Interface <br> Decapsulation")
-    WG_B -- 2. Forward to Dest --> Pkt_Final
+    WG_B -- "2. Forward to Dest" --> Pkt_Final
 ```
 
 ### 5\. Reduced Emphasis on Traditional Perimeter Firewalls
@@ -353,4 +358,3 @@ graph LR
   * **Micro-segmentation:** Policies defined in OPA and enforced locally on each Secure-Sonic-WAN node create fine-grained segmentation, limiting communication to only what is explicitly allowed for a given identity. Even if a device is compromised, its ability to move laterally is severely restricted.
   * **Outbound-Only Connections:** Tunnels are typically initiated outbound from the edge device. This significantly reduces the attack surface exposed to the public internet, as there are fewer (or no) inbound ports listening for connections.
   * **Stateful Filtering Still Relevant:** While the traditional *perimeter* firewall's role is diminished, stateful packet filtering is still essential. This is typically implemented on the edge node itself (potentially using SONiC ACLs or Linux `nftables`/`iptables`) or on the endpoints to enforce the Zero Trust policies and block unwanted traffic, even after authentication. The key difference is that the *primary* security boundary is identity and policy, not just network topology.
-  
