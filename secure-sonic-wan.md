@@ -50,11 +50,28 @@ puppeteer:
 
 # Secure-Sonic-WAN: A Modern Zero-Trust IPv6 Architecture for Secure Edge Connectivity
 
+## About This Document
+
+This document has been prepared by Net-Innovate Solutions GmbH as a technical concept paper describing a Proof of Concept (POC) for a secure Wide Area Network architecture based on SONiC (Software for Open Networking in the Cloud). It is intended to serve as a foundation for discussions with interested stakeholders, including technology providers, open-source software developers, system integrators, and potential clients. The concepts presented herein represent Net-Innovate Solutions GmbH's vision for next-generation secure networking and are offered to facilitate collaboration and exploration of implementation opportunities.
+
+**Copyright © 2025 Net-Innovate Solutions GmbH. All Rights Reserved.**
+
+This document and its contents are proprietary and confidential. No part of this document may be reproduced, distributed, or transmitted in any form or by any means without the prior written permission of Net-Innovate Solutions GmbH.
+
+**License:** Proprietary - Restricted Distribution
+
+**Contact:** [office@net-innovate.com](mailto:office@net-innovate.com)
+
+
+**Document Status:** Discussion Paper | **Version:** 1.0 | **Date:** October 2025
+
+---
+
 ## 1\. Executive Summary
 
 The Secure-Sonic-WAN project represents a next-generation approach to building secure, flexible, and cost-effective Wide Area Network (WAN) infrastructures. It leverages open-source networking software, IPv6-native design, and Zero Trust principles to provide a scalable, identity-driven networking architecture. The system is built around SONIC (Software for Open Networking in the Cloud) as the foundational network operating system, extended by containerized services for tunneling, identity, and policy management.
 
------
+---
 
 ## 2\. Background and Motivation
 
@@ -129,7 +146,7 @@ The Zero Trust principle of "never trust, always verify" is embedded at every la
 Instead of perimeter firewalls, each edge node enforces micro-segmentation policies locally. Outbound-only tunnel connections (e.g., via WireGuard or ZeroTier) ensure that no inbound traffic is accepted unless explicitly authorized. This drastically reduces the attack surface and prevents lateral movement.
 
 ```mermaid
-%%{init: {'theme':'default', 'themeVariables': { 'fontSize':'12px'}, 'sequence': {'width':530}}}%%
+%%{init: {'theme':'default', 'themeVariables': {'fontSize':'12px'}, 'sequence': {'useMaxWidth': true, 'wrap': true, 'mirrorActors': false, 'actorMargin': 50}}}%%
 sequenceDiagram
     participant Device
     participant IAM_Agent as IAM Agent (on node)
@@ -146,6 +163,7 @@ sequenceDiagram
     Device->>+Target_Service: 7. Authenticated & Authorized Connection
     Target_Service-->>-Device: 8. Encrypted Communication
 ```
+
 
 -----
 
@@ -442,27 +460,26 @@ Return traffic follows the reverse path: the AFTR encapsulates the IPv4 reply pa
 ### 4\. Visualization
 
 ```mermaid
-%%{init: {'theme':'default', 'themeVariables': {'fontSize':'10px'}, 'sequence': {'useMaxWidth': true, 'width': 600}}}%%
+%%{init: {'theme':'default', 'themeVariables': {'fontSize':'11px'}, 'sequence': {'useMaxWidth': true, 'wrap': true, 'mirrorActors': false, 'actorMargin': 40}}}%%
 sequenceDiagram
-    participant Legacy_IPv4 as Legacy IPv4 Device  (Site A - 192.168.1.50)
-    participant EdgeNode_A as Secure-Sonic-WAN (A)  (DS-Lite B4)
-    participant IPv6_Core as IPv6 Core Network  (ZeroTier/WireGuard)
-    participant AFTR as Central AFTR  (IPv4 Routing Hub)
-    participant EdgeNode_B as Secure-Sonic-WAN (B)  (DS-Lite B4)
-    participant Target_IPv4 as Target IPv4 System  (Site B - 192.168.2.100)
+    participant Legacy_IPv4 as Legacy IPv4 Device <br> (Site A - 192.168.1.50)
+    participant EdgeNode_A as Secure-Sonic-WAN (A) <br> (DS-Lite B4)
+    participant IPv6_Core as IPv6 Core Network <br> (ZeroTier/WireGuard)
+    participant AFTR as Central AFTR <br> (IPv4 Routing Hub)
+    participant EdgeNode_B as Secure-Sonic-WAN (B) <br> (DS-Lite B4)
+    participant Target_IPv4 as Target IPv4 System <br> (Site B - 192.168.2.100)
 
     Legacy_IPv4->>+EdgeNode_A: 1. IPv4 Packet (Dst: 192.168.2.100)
     EdgeNode_A->>+IPv6_Core: 2. Encapsulate in IPv6 (Dst: AFTR_IPv6)
     IPv6_Core-->>AFTR: 3. Route IPv6 Packet
-    AFTR->>+EdgeNode_B: 4. Decapsulate, Route IPv4  (Encapsulate in IPv6 Dst: EdgeNode_B_IPv6)
+    AFTR->>+EdgeNode_B: 4. Decapsulate, Route IPv4 <br> (Encapsulate in IPv6 Dst: EdgeNode_B_IPv6)
     EdgeNode_B-->>-Target_IPv4: 5. Decapsulate, Send IPv4 Packet
 
     Target_IPv4->>+EdgeNode_B: 6. IPv4 Reply (Dst: 192.168.1.50)
     EdgeNode_B->>+IPv6_Core: 7. Encapsulate in IPv6 (Dst: AFTR_IPv6)
     IPv6_Core-->>AFTR: 8. Route IPv6 Reply
-    AFTR->>+EdgeNode_A: 9. Decapsulate, Route IPv4  (Encapsulate in IPv6 Dst: EdgeNode_A_IPv6)
+    AFTR->>+EdgeNode_A: 9. Decapsulate, Route IPv4 <br> (Encapsulate in IPv6 Dst: EdgeNode_A_IPv6)
     EdgeNode_A-->>-Legacy_IPv4: 10. Decapsulate, Send IPv4 Reply
-
 ```
 
 *(Note: The diagram simplifies the AFTR routing step for clarity. The AFTR determines the correct outgoing B4 based on the IPv4 destination).*
