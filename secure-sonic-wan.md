@@ -16,25 +16,25 @@ puppeteer:
         size: A4 portrait;
         margin: 2cm;
     }
-    
+
     body {
         max-width: 100%;
     }
-    
+
     /* Ensure Mermaid diagrams fit on page */
     .mermaid, .mermaid svg {
         max-width: 100% !important;
         height: auto !important;
         page-break-inside: avoid;
     }
-    
+
     /* Prevent code blocks from overflowing */
     pre, code {
         max-width: 100%;
         overflow-wrap: break-word;
         white-space: pre-wrap;
     }
-    
+
     /* Adjust Mermaid text if needed */
     .mermaid text {
         font-size: 10px !important;
