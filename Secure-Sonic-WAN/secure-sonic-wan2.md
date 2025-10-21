@@ -1,5 +1,52 @@
+---
+export_on_save:
+  puppeteer: false
+puppeteer:
+  format: A4
+  margin:
+    top: 2cm
+    bottom: 2cm
+    left: 2cm
+    right: 2cm
+---
 
+<style>
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 2cm;
+    }
+    
+    body {
+        max-width: 100%;
+    }
+    
+    /* Ensure Mermaid diagrams fit on page */
+    .mermaid, .mermaid svg {
+        max-width: 100% !important;
+        height: auto !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Prevent code blocks from overflowing */
+    pre, code {
+        max-width: 100%;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+    }
+    
+    /* Adjust Mermaid text if needed */
+    .mermaid text {
+        font-size: 10px !important;
+    }
+}
 
+/* Apply to preview as well */
+.mermaid, .mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+</style>
 
 # Secure-Sonic-WAN: A Modern Zero-Trust IPv6 Architecture for Secure Edge Connectivity
 
@@ -395,48 +442,25 @@ Return traffic follows the reverse path: the AFTR encapsulates the IPv4 reply pa
 ### 4\. Visualization
 
 ```mermaid
----
-title: "long flow chart"
+%%{init: {'theme':'default', 'themeVariables': {'fontSize':'10px'}, 'sequence': {'useMaxWidth': true, 'width': 600}}}%%
+sequenceDiagram
+    participant Legacy_IPv4 as Legacy IPv4 Device  (Site A - 192.168.1.50)
+    participant EdgeNode_A as Secure-Sonic-WAN (A)  (DS-Lite B4)
+    participant IPv6_Core as IPv6 Core Network  (ZeroTier/WireGuard)
+    participant AFTR as Central AFTR  (IPv4 Routing Hub)
+    participant EdgeNode_B as Secure-Sonic-WAN (B)  (DS-Lite B4)
+    participant Target_IPv4 as Target IPv4 System  (Site B - 192.168.2.100)
 
-format:
-  html:
-    toc: true 
-  pdf:
-    documentclass: article
-    number-sections: true
-    code-fold: true
-    classoption: "margin=1in"
-    header-includes:
-      - \setlength{\oddsidemargin}{0in}
-      - \setlength{\evensidemargin}{0in}
-      - \setlength{\textwidth}{6.5in}
-      - \setlength{\topmargin}{0in}
-      - \setlength{\textheight}{9in}
-    page-size: a4
-    margin: 1in
+    Legacy_IPv4->>+EdgeNode_A: 1. IPv4 Packet (Dst: 192.168.2.100)
+    EdgeNode_A->>+IPv6_Core: 2. Encapsulate in IPv6 (Dst: AFTR_IPv6)
+    IPv6_Core-->>AFTR: 3. Route IPv6 Packet
+    AFTR->>+EdgeNode_B: 4. Decapsulate, Route IPv4  (Encapsulate in IPv6 Dst: EdgeNode_B_IPv6)
+    EdgeNode_B-->>-Target_IPv4: 5. Decapsulate, Send IPv4 Packet
 
----
-%%{init: { "sequence": { "wrap": true, "width":600 } } }%%
-
-    sequenceDiagram
-        participant Legacy_IPv4 as Legacy IPv4 Device <br> (Site A - 192.168.1.50)
-        participant EdgeNode_A as Secure-Sonic-WAN (A) <br> (DS-Lite B4)
-        participant IPv6_Core as IPv6 Core Network <br> (ZeroTier/WireGuard)
-        participant AFTR as Central AFTR <br> (IPv4 Routing Hub)
-        participant EdgeNode_B as Secure-Sonic-WAN (B) <br> (DS-Lite B4)
-        participant Target_IPv4 as Target IPv4 System <br> (Site B - 192.168.2.100)
-
-        Legacy_IPv4->>+EdgeNode_A: 1. IPv4 Packet (Dst: 192.168.2.100)
-        EdgeNode_A->>+IPv6_Core: 2. Encapsulate in IPv6 (Dst: AFTR_IPv6)
-        IPv6_Core-->>AFTR: 3. Route IPv6 Packet
-        AFTR->>+EdgeNode_B: 4. Decapsulate, Route IPv4 <br> (Encapsulate in IPv6 Dst: EdgeNode_B_IPv6)
-        EdgeNode_B-->>-Target_IPv4: 5. Decapsulate, Send IPv4 Packet
-
-    %% Return Path
     Target_IPv4->>+EdgeNode_B: 6. IPv4 Reply (Dst: 192.168.1.50)
     EdgeNode_B->>+IPv6_Core: 7. Encapsulate in IPv6 (Dst: AFTR_IPv6)
     IPv6_Core-->>AFTR: 8. Route IPv6 Reply
-    AFTR->>+EdgeNode_A: 9. Decapsulate, Route IPv4 <br> (Encapsulate in IPv6 Dst: EdgeNode_A_IPv6)
+    AFTR->>+EdgeNode_A: 9. Decapsulate, Route IPv4  (Encapsulate in IPv6 Dst: EdgeNode_A_IPv6)
     EdgeNode_A-->>-Legacy_IPv4: 10. Decapsulate, Send IPv4 Reply
 
 ```
